@@ -1,4 +1,4 @@
-import { createProjectGraph, createAuditGraph } from './graphs.js';
+import { createProjectGraph, createSkillsGraph } from './graphs.js';
 
 export async function fetchUserData(token) {
     try {
@@ -51,20 +51,7 @@ export async function fetchUserData(token) {
                                 amount
                                 path
                             }
-                            # Общая сумма XP
-                            xpTotal: transactions_aggregate(
-                                where: {
-                                    type: {_eq: "xp"}
-                                }
-                            ) {
-                                aggregate {
-                                    sum {
-                                        amount
-                                    }
-                                }
-                            }
-                            
-                            # Прогресс по проектам
+                            # Прогресс проектов
                             progresses(
                                 where: {
                                     object: { type: {_eq: "project"} }
@@ -77,7 +64,6 @@ export async function fetchUserData(token) {
                                     name
                                     type
                                 }
-                                path
                             }
                         }
                     }
@@ -110,8 +96,9 @@ function updateUserInterface(userData) {
     // Вычисляем общий XP, исключая пискины
     const totalXP = userData.transactions.reduce((sum, t) => sum + t.amount, 0);
 
-    // Считаем завершенные проекты
-    const completedProjects = userData.progresses.filter(p => p.grade > 0).length;
+    // Считаем завершенные проекты (если есть данные о прогрессе)
+    const completedProjects = userData.progresses ? 
+        userData.progresses.filter(p => p.grade > 0).length : 0;
 
     // Вычисляем аудит рейтинг
     const auditRatio = (userData.totalUp / userData.totalDown).toFixed(1);
@@ -137,5 +124,5 @@ function updateUserInterface(userData) {
 
 function createGraphs(userData) {
     createProjectGraph(document.getElementById('line-chart'), userData);
-    createAuditGraph(document.getElementById('bar-chart'), userData);
+    createSkillsGraph(document.getElementById('skills-chart'), userData);
 }
