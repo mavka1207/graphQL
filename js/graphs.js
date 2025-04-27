@@ -17,14 +17,14 @@ export function createLegendItem(color, label) {
 export function createProjectGraph(container, userData) {
     if (!container) return;
     container.innerHTML = `
-        <div class="chart-info-container">
+        <div class="info-card">
             <h3>XP Progression</h3>
             <div class="chart-content"></div>
         </div>
     `;
 
     const chartContent = container.querySelector('.chart-content');
-    const width = 800;
+    const width = 600;
     const height = 300;
     const padding = 40;
     const leftPadding = 60; // Для меток оси Y
@@ -32,7 +32,7 @@ export function createProjectGraph(container, userData) {
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
     svg.setAttribute("width", "100%");
-    svg.setAttribute("height", "100%");
+    svg.setAttribute("height", "");
 
     // Обработка данных
     let totalXP = 0;
@@ -52,7 +52,7 @@ export function createProjectGraph(container, userData) {
         gridLine.setAttribute("x2", width - padding);
         gridLine.setAttribute("y1", y);
         gridLine.setAttribute("y2", y);
-        gridLine.setAttribute("stroke", "#E2E8F0");
+        gridLine.setAttribute("stroke", "#2D3748");
         gridLine.setAttribute("stroke-dasharray", "2,2");
         svg.appendChild(gridLine);
 
@@ -62,7 +62,7 @@ export function createProjectGraph(container, userData) {
         yLabel.setAttribute("x", leftPadding - 10);
         yLabel.setAttribute("y", y + 5);
         yLabel.setAttribute("text-anchor", "end");
-        yLabel.setAttribute("fill", "#718096");
+        yLabel.setAttribute("fill", "#2D3748");
         yLabel.textContent = `${yValue}k`;
         svg.appendChild(yLabel);
     }
@@ -132,7 +132,7 @@ export function createProjectGraph(container, userData) {
             dateLabel.setAttribute("x", x);
             dateLabel.setAttribute("y", height - padding + 20);
             dateLabel.setAttribute("text-anchor", "middle");
-            dateLabel.setAttribute("fill", "#718096");
+            dateLabel.setAttribute("fill", "#2D3748");
             dateLabel.textContent = d.date.toLocaleDateString();
             svg.appendChild(dateLabel);
         }
@@ -146,107 +146,129 @@ export function createProjectGraph(container, userData) {
 export function createAuditGraph(container, userData) {
     if (!container) return;
     container.innerHTML = `
-        <div class="chart-info-container">
-            <h3>XP by Project Path</h3>
+        <div class="info-card">
+            <h3>Technical Skills</h3>
             <div class="chart-content"></div>
         </div>
     `;
 
-    const chartContent = container.querySelector('.chart-content');
     const width = 800;
-    const height = 300;
+    const height = 400;
     const padding = 40;
+    const leftPadding = 200;
+    const bottomPadding = 60;
 
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
     svg.setAttribute("width", "100%");
     svg.setAttribute("height", "100%");
 
-    // Группируем XP по путям
-    const xpByPath = userData.transactions.reduce((acc, t) => {
-        const path = t.path.split('/')[1] || 'Other';
-        acc[path] = (acc[path] || 0) + t.amount;
-        return acc;
-    }, {});
+    // Получаем данные о навыках
+    const skills = userData.skills
+        .map(skill => ({
+            name: skill.type.replace('skill_', '').replace(/_/g, ' '),
+            amount: Math.round((skill.amount / 1000) * 100), // Конвертируем в проценты
+            total: 100
+        }))
+        .sort((a, b) => b.amount - a.amount)
+        .slice(0, 6);
 
-    const data = Object.entries(xpByPath)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5);
+    console.log('Skills data:', skills); // Для отладки
 
-    const maxXP = Math.max(...data.map(([_, xp]) => xp));
-    const barWidth = (width - 2 * padding) / data.length - 10;
+    const barHeight = 40;
+    const barGap = 20;
 
-    data.forEach(([path, xp], i) => {
-        const barHeight = (xp / maxXP) * (height - 2 * padding);
-        const x = padding + i * (barWidth + 10);
-        const y = height - padding - barHeight;
+    // Рисуем навыки
+    skills.forEach((skill, i) => {
+        const y = padding + i * (barHeight + barGap);
 
-        const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-        rect.setAttribute("x", x);
-        rect.setAttribute("y", y);
-        rect.setAttribute("width", barWidth);
-        rect.setAttribute("height", barHeight);
-        rect.setAttribute("fill", "#4299E1");
+        // Фоновая полоса (100%)
+        const bgRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        bgRect.setAttribute("x", leftPadding);
+        bgRect.setAttribute("y", y);
+        bgRect.setAttribute("width", width - leftPadding - padding);
+        bgRect.setAttribute("height", barHeight);
+        bgRect.setAttribute("fill", "#2D3748");
+        bgRect.setAttribute("opacity", "0.1");
+        svg.appendChild(bgRect);
 
+        // Полоса прогресса
+        const progressWidth = (skill.amount / skill.total) * (width - leftPadding - padding);
+        const progressRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        progressRect.setAttribute("x", leftPadding);
+        progressRect.setAttribute("y", y);
+        progressRect.setAttribute("width", progressWidth);
+        progressRect.setAttribute("height", barHeight);
+        progressRect.setAttribute("fill", "#4299E1");
+        svg.appendChild(progressRect);
+
+        // Название навыка
         const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-        text.setAttribute("x", x + barWidth / 2);
-        text.setAttribute("y", height - padding + 20);
-        text.setAttribute("text-anchor", "middle");
+        text.setAttribute("x", leftPadding - 10);
+        text.setAttribute("y", y + barHeight / 2 + 5);
+        text.setAttribute("text-anchor", "end");
         text.setAttribute("fill", "#2D3748");
-        text.textContent = path;
-
-        svg.appendChild(rect);
+        text.setAttribute("font-weight", "bold");
+        text.textContent = skill.name;
         svg.appendChild(text);
+
+        // Процент
+        const percentText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        percentText.setAttribute("x", leftPadding + progressWidth + 10);
+        percentText.setAttribute("y", y + barHeight / 2 + 5);
+        percentText.setAttribute("fill", "#2D3748");
+        percentText.textContent = `${skill.amount}%`;
+        svg.appendChild(percentText);
     });
 
-    chartContent.appendChild(svg);
+    container.querySelector('.chart-content').appendChild(svg);
 }
 
-export function createTimeProgressGraph(container, userData) {
-    container.innerHTML = '<h3>Best skills</h3>';
+// export function createTimeProgressGraph(container, userData) {
+//     container.innerHTML = '<h3>Best skills</h3>';
 
-    const height = 200;
-    const width = container.clientWidth - 40;
-    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.setAttribute("width", width);
-    svg.setAttribute("height", height);
+//     const height = 200;
+//     const width = container.clientWidth - 40;
+//     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+//     svg.setAttribute("width", width);
+//     svg.setAttribute("height", height);
 
-    const xpOverTime = userData.transactions
-        .filter(t => t.type === 'xp')
-        .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
-        .reduce((acc, t) => {
-            const date = new Date(t.createdAt).toLocaleDateString();
-            const lastValue = acc.length > 0 ? acc[acc.length - 1].total : 0;
-            acc.push({
-                date: date,
-                amount: t.amount,
-                total: lastValue + t.amount
-            });
-            return acc;
-        }, []);
+//     const xpOverTime = userData.transactions
+//         .filter(t => t.type === 'xp')
+//         .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+//         .reduce((acc, t) => {
+//             const date = new Date(t.createdAt).toLocaleDateString();
+//             const lastValue = acc.length > 0 ? acc[acc.length - 1].total : 0;
+//             acc.push({
+//                 date: date,
+//                 amount: t.amount,
+//                 total: lastValue + t.amount
+//             });
+//             return acc;
+//         }, []);
 
-    const maxXP = xpOverTime[xpOverTime.length - 1].total;
-    const barWidth = 5;
-    const spacing = 2;
+//     const maxXP = xpOverTime[xpOverTime.length - 1].total;
+//     const barWidth = 5;
+//     const spacing = 2;
 
-    xpOverTime.forEach((point, index) => {
-        const barLength = (point.total / maxXP) * width;
-        const y = index * (barWidth + spacing);
+//     xpOverTime.forEach((point, index) => {
+//         const barLength = (point.total / maxXP) * width;
+//         const y = index * (barWidth + spacing);
 
-        const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-        rect.setAttribute("x", 0);
-        rect.setAttribute("y", y);
-        rect.setAttribute("width", barLength);
-        rect.setAttribute("height", barWidth);
-        rect.setAttribute("fill", "#4299e1");
-        svg.appendChild(rect);
-    });
+//         const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+//         rect.setAttribute("x", 0);
+//         rect.setAttribute("y", y);
+//         rect.setAttribute("width", barLength);
+//         rect.setAttribute("height", barWidth);
+//         rect.setAttribute("fill", "#4299e1");
+//         svg.appendChild(rect);
+//     });
 
-    container.appendChild(svg);
+//     container.appendChild(svg);
 
-    const legend = document.createElement("div");
-    legend.className = "chart-legend";
-    legend.appendChild(createLegendItem("#4299e1", `Total XP: ${Math.round(maxXP / 1000)}k`));
+//     const legend = document.createElement("div");
+//     legend.className = "chart-legend";
+//     legend.appendChild(createLegendItem("#4299e1", `Total XP: ${Math.round(maxXP / 1000)}k`));
 
-    container.appendChild(legend);
-}
+//     container.appendChild(legend);
+// }

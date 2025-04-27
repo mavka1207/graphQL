@@ -20,6 +20,7 @@ export async function fetchUserData(token) {
                             auditRatio
                             totalUp
                             totalDown
+                            # XP транзакции
                             transactions(
                                 where: {
                                     _and: [
@@ -39,20 +40,21 @@ export async function fetchUserData(token) {
                                 createdAt
                                 path
                             }
-                            
+                            # Навыки
+                            skills: transactions(
+                                where: {
+                                    type: {_like: "skill_%"}
+                                }
+                                order_by: {amount: desc}
+                            ) {
+                                type
+                                amount
+                                path
+                            }
                             # Общая сумма XP
                             xpTotal: transactions_aggregate(
                                 where: {
-                                    _and: [
-                                        {type: {_eq: "xp"}},
-                                        {_or: [
-                                            {_and: [
-                                                {path: {_nilike: "%piscine-go%"}},
-                                                {path: {_nilike: "%piscine-js%"}}
-                                            ]},
-                                            {path: {_ilike: "%/piscine-js"}}
-                                        ]}
-                                    ]
+                                    type: {_eq: "xp"}
                                 }
                             ) {
                                 aggregate {
@@ -94,8 +96,10 @@ export async function fetchUserData(token) {
         document.getElementById("username-display").textContent = userData.login;
         updateUserInterface(userData);
 
+        return userData;
     } catch (error) {
         console.error("Failed to fetch user data:", error);
+        throw error;
     }
 }
 
