@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <link rel="stylesheet" href="static/styles.css">
+</head>
+
+<body>
+
+    <header id="header">
+        <div id="user-info-header" class="hidden">
+            <div class="user-welcome">
+                <span>Welcome, </span>
+                <span id="username-display"></span>
+            </div>
+            <button id="logout-button">Logout</button>
+        </div>
+    </header>
+
+    <div id="login-columns">
+    </div>
+
+    <form id="login-section">
+        <h2>Login</h2>
+        <input type="text" name="useremail" id="username-or-email" placeholder="Username or E-mail"
+            autocomplete="username">
+        <input type="password" name="password" id="password-login" placeholder="Password"
+            autocomplete="current-password">
+        <button type="submit" id="login-button">Login</button>
+        <p id="login-error-message"></p>
+    </form>
+
+    <div id="data-container">
+        <div id="personal-info" class="chart-container user-info"></div>
+        <div id="line-chart" class="chart-container user-info"></div>
+        <div id="bar-chart" class="chart-container user-info"></div>
+    </div>
+
+    <footer>
+        <div class="footer-content">
+            <span>Created in April 2025 by: Kateryna Ovsiienko
+            <a href="https://github.com/mavka1207" target="_blank" rel="noopener">@mavka1207</a> 
+            </span>
+        </div>
+    </footer>
+
+    <script type="module" src="js/index.js"></script>
+
+</body>
+
+</html>
+
+
