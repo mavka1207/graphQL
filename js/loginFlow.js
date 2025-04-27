@@ -1,28 +1,44 @@
-import { login, logout } from './auth.js';
 import { fetchUserData } from './userData.js';
-import { showUserProfile, showLoginForm } from './uiToggle.js';
 
-export function setupLoginFlow() {
-    const loginForm = document.getElementById("login-section");
-    const loginError = document.getElementById("login-error-message");
-    const usernameInput = document.getElementById("username-or-email");
-    const passwordInput = document.getElementById("password-login");
-    const logoutBtn = document.getElementById("logout-button");
+export async function handleLogin(event) {
+    event.preventDefault();
+    
+    const usernameOrEmail = document.getElementById('username-or-email').value;
+    const password = document.getElementById('password-login').value;
+    const errorMessage = document.getElementById('login-error-message');
 
-    loginForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        try {
-            const token = await login(usernameInput.value.trim(), passwordInput.value);
-            localStorage.setItem("jwt", token);
-            showUserProfile();
-            await fetchUserData(token);
-        } catch (err) {
-            loginError.textContent = err.message;
+    try {
+        errorMessage.textContent = '';
+        
+        if (!usernameOrEmail || !password) {
+            throw new Error('Please fill in all fields');
         }
-    });
 
-    logoutBtn.addEventListener("click", () => {
-        logout();
-        showLoginForm();
-    });
+        const credentials = btoa(`${usernameOrEmail}:${password}`);
+        
+        const response = await fetch('https://01.gritlab.ax/api/auth/signin', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Basic ${credentials}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Invalid credentials');
+        }
+
+        const token = await response.text();
+        const cleanToken = token.replace(/^"|"$/g, '');
+        
+        localStorage.setItem('token', cleanToken);
+        
+        document.getElementById('login-section').classList.add('hidden');
+        document.getElementById('user-info-header').classList.remove('hidden');
+        
+        await fetchUserData(cleanToken);
+
+    } catch (error) {
+        console.error('Login error:', error);
+        errorMessage.textContent = error.message;
+    }
 }

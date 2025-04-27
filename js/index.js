@@ -1,7 +1,14 @@
-import { setupLoginFlow } from './loginFlow.js';
-import { checkExistingToken } from './tokenCheck.js';
+import { handleLogin } from './loginFlow.js';
+import { checkToken } from './tokenCheck.js';
 
-document.addEventListener("DOMContentLoaded", () => {
-    checkExistingToken();
-    setupLoginFlow();
+// Check token on page load
+document.addEventListener('DOMContentLoaded', checkToken);
+
+// Add login form event listener
+document.getElementById('login-section').addEventListener('submit', handleLogin);
+
+// Add logout handler
+document.getElementById('logout-button').addEventListener('click', () => {
+    localStorage.removeItem('token');
+    location.reload();
 });
