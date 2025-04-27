@@ -27,6 +27,7 @@ export function createProjectGraph(container, userData) {
     const width = 800;
     const height = 300;
     const padding = 40;
+    const leftPadding = 60; // Для меток оси Y
 
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
@@ -43,9 +44,32 @@ export function createProjectGraph(container, userData) {
             project: t.path.split('/').pop()
         }));
 
+    // Добавляем сетку
+    for (let i = 0; i <= 5; i++) {
+        const y = padding + (i * (height - 2 * padding) / 5);
+        const gridLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        gridLine.setAttribute("x1", leftPadding);
+        gridLine.setAttribute("x2", width - padding);
+        gridLine.setAttribute("y1", y);
+        gridLine.setAttribute("y2", y);
+        gridLine.setAttribute("stroke", "#E2E8F0");
+        gridLine.setAttribute("stroke-dasharray", "2,2");
+        svg.appendChild(gridLine);
+
+        // Метки оси Y
+        const yLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        const yValue = Math.round((1 - i/5) * totalXP / 1000);
+        yLabel.setAttribute("x", leftPadding - 10);
+        yLabel.setAttribute("y", y + 5);
+        yLabel.setAttribute("text-anchor", "end");
+        yLabel.setAttribute("fill", "#718096");
+        yLabel.textContent = `${yValue}k`;
+        svg.appendChild(yLabel);
+    }
+
     // Оси
     const xAxis = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    xAxis.setAttribute("x1", padding);
+    xAxis.setAttribute("x1", leftPadding);
     xAxis.setAttribute("y1", height - padding);
     xAxis.setAttribute("x2", width - padding);
     xAxis.setAttribute("y2", height - padding);
@@ -53,17 +77,17 @@ export function createProjectGraph(container, userData) {
     svg.appendChild(xAxis);
 
     const yAxis = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    yAxis.setAttribute("x1", padding);
+    yAxis.setAttribute("x1", leftPadding);
     yAxis.setAttribute("y1", padding);
-    yAxis.setAttribute("x2", padding);
+    yAxis.setAttribute("x2", leftPadding);
     yAxis.setAttribute("y2", height - padding);
     yAxis.setAttribute("stroke", "#718096");
     svg.appendChild(yAxis);
 
     // График
-    const pathData = `M ${padding} ${height - padding} ` + 
+    const pathData = `M ${leftPadding} ${height - padding} ` + 
         xpData.map((d, i) => {
-            const x = padding + (i / (xpData.length - 1)) * (width - 2 * padding);
+            const x = leftPadding + (i / (xpData.length - 1)) * (width - leftPadding - padding);
             const y = height - padding - (d.amount / totalXP) * (height - 2 * padding);
             return `L ${x} ${y}`;
         }).join(' ');
@@ -75,17 +99,19 @@ export function createProjectGraph(container, userData) {
     path.setAttribute("fill", "none");
     svg.appendChild(path);
 
-    // Точки
+    // Точки и метки времени
     xpData.forEach((d, i) => {
-        const x = padding + (i / (xpData.length - 1)) * (width - 2 * padding);
+        const x = leftPadding + (i / (xpData.length - 1)) * (width - leftPadding - padding);
         const y = height - padding - (d.amount / totalXP) * (height - 2 * padding);
 
+        // Точка
         const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
         circle.setAttribute("cx", x);
         circle.setAttribute("cy", y);
         circle.setAttribute("r", "4");
         circle.setAttribute("fill", "#4299E1");
 
+        // Тултип
         circle.addEventListener("mouseover", (e) => {
             const tooltip = document.createElement("div");
             tooltip.className = "tooltip";
@@ -99,6 +125,17 @@ export function createProjectGraph(container, userData) {
             const tooltip = document.querySelector(".tooltip");
             if (tooltip) tooltip.remove();
         });
+
+        // Метка времени (для каждой 5-й точки)
+        if (i % 5 === 0 || i === xpData.length - 1) {
+            const dateLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            dateLabel.setAttribute("x", x);
+            dateLabel.setAttribute("y", height - padding + 20);
+            dateLabel.setAttribute("text-anchor", "middle");
+            dateLabel.setAttribute("fill", "#718096");
+            dateLabel.textContent = d.date.toLocaleDateString();
+            svg.appendChild(dateLabel);
+        }
 
         svg.appendChild(circle);
     });
