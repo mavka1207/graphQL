@@ -34,11 +34,11 @@ export async function handleLogin(event) {
         
         document.getElementById('login-section').classList.add('hidden');
         document.getElementById('user-info-header').classList.remove('hidden');
+        document.getElementById('data-container').classList.remove('hidden');
         
         await fetchUserData(cleanToken);
 
     } catch (error) {
-        console.error('Login error:', error);
         errorMessage.textContent = error.message;
     }
 }

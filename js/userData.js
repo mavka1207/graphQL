@@ -20,38 +20,29 @@ export async function fetchUserData(token) {
                             auditRatio
                             totalUp
                             totalDown
-                            # XP транзакции
                             transactions(
                                 where: {
-                                    _and: [
-                                        {type: {_eq: "xp"}},
-                                        {_or: [
-                                            {_and: [
-                                                {path: {_nilike: "%piscine-go%"}},
-                                                {path: {_nilike: "%piscine-js%"}}
-                                            ]},
-                                            {path: {_ilike: "%/piscine-js"}}
-                                        ]}
-                                    ]
+                                    type: {_eq: "xp"},
+                                    path: {_nilike: "%piscine%"}
                                 }
                                 order_by: {createdAt: asc}
                             ) {
                                 amount
                                 createdAt
                                 path
+                                type
                             }
-                            # Навыки
                             skills: transactions(
                                 where: {
-                                    type: {_like: "skill_%"}
+                                    type: {_regex: "^skill_.*"}
                                 }
                                 order_by: {amount: desc}
                             ) {
                                 type
                                 amount
+                                createdAt
                                 path
                             }
-                            # Прогресс проектов
                             progresses(
                                 where: {
                                     object: { type: {_eq: "project"} }
@@ -72,13 +63,33 @@ export async function fetchUserData(token) {
         });
 
         const data = await response.json();
-        console.log("Fetched data:", data);
-
         if (data.errors) {
             throw new Error(data.errors[0].message);
         }
 
         const userData = data.data.user[0];
+
+        // Отдельно фильтруем XP транзакции
+        const xpTransactions = (userData.transactions || []).filter(t => t.type === 'xp');
+
+        const skillsMap = {};
+        userData.skills.forEach(skill => {
+            if (!skill.type.startsWith('skill_')) return;
+            
+            const skillName = skill.type.replace('skill_', '');
+            const amount = Math.round(skill.amount);
+            
+            if (!skillsMap[skillName] || skillsMap[skillName].amount < amount) {
+                skillsMap[skillName] = {
+                    name: skillName,
+                    amount: amount
+                };
+            }
+        });
+
+        userData.skills = Object.values(skillsMap)
+            .sort((a, b) => b.amount - a.amount);
+
         document.getElementById("username-display").textContent = userData.login;
         updateUserInterface(userData);
 
@@ -90,17 +101,10 @@ export async function fetchUserData(token) {
 }
 
 function updateUserInterface(userData) {
-    console.log('Updating UI with user data:', userData);
     const personalInfo = document.getElementById("personal-info");
-    
-    // Вычисляем общий XP, исключая пискины
     const totalXP = userData.transactions.reduce((sum, t) => sum + t.amount, 0);
-
-    // Считаем завершенные проекты (если есть данные о прогрессе)
     const completedProjects = userData.progresses ? 
         userData.progresses.filter(p => p.grade > 0).length : 0;
-
-    // Вычисляем аудит рейтинг
     const auditRatio = (userData.totalUp / userData.totalDown).toFixed(1);
 
     personalInfo.innerHTML = `
@@ -119,10 +123,6 @@ function updateUserInterface(userData) {
         </div>
     `;
 
-    createGraphs(userData);
-}
-
-function createGraphs(userData) {
     createProjectGraph(document.getElementById('line-chart'), userData);
     createSkillsGraph(document.getElementById('skills-chart'), userData);
 }
