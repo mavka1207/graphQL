@@ -16,6 +16,7 @@ export function createLegendItem(color, label) {
 
 export function createProjectGraph(container, userData) {
     if (!container) return;
+
     container.innerHTML = `
         <div class="info-card">
             <h3>XP Progression</h3>
@@ -24,74 +25,62 @@ export function createProjectGraph(container, userData) {
     `;
 
     const chartContent = container.querySelector('.chart-content');
-    const width = 600;
-    const height = 300;
+    const width = 800;
+    const height = 400;
     const padding = 40;
-    const leftPadding = 60; // Для меток оси Y
+    const leftPadding = 100;
 
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-    svg.setAttribute("width", "100%");
-    svg.setAttribute("height", "");
+    svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
 
-    // Обработка данных
-    let totalXP = 0;
-    const xpData = userData.transactions
-        .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
-        .map(t => ({
-            date: new Date(t.createdAt),
-            amount: totalXP += t.amount,
-            project: t.path.split('/').pop()
-        }));
+    const xpTransactions = userData.transactions
+        .filter(t => t.type === 'xp' && !t.path.includes('piscine'))
+        .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
-    // Добавляем сетку
-    for (let i = 0; i <= 5; i++) {
-        const y = padding + (i * (height - 2 * padding) / 5);
-        const gridLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
-        gridLine.setAttribute("x1", leftPadding);
-        gridLine.setAttribute("x2", width - padding);
-        gridLine.setAttribute("y1", y);
-        gridLine.setAttribute("y2", y);
-        gridLine.setAttribute("stroke", "#2D3748");
-        gridLine.setAttribute("stroke-dasharray", "2,2");
-        svg.appendChild(gridLine);
-
-        // Метки оси Y
-        const yLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
-        const yValue = Math.round((1 - i/5) * totalXP / 1000);
-        yLabel.setAttribute("x", leftPadding - 10);
-        yLabel.setAttribute("y", y + 5);
-        yLabel.setAttribute("text-anchor", "end");
-        yLabel.setAttribute("fill", "#2D3748");
-        yLabel.textContent = `${yValue}k`;
-        svg.appendChild(yLabel);
+    if (xpTransactions.length === 0) {
+        chartContent.innerHTML = '<p>No XP data available</p>';
+        return;
     }
 
-    // Оси
-    const xAxis = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    xAxis.setAttribute("x1", leftPadding);
-    xAxis.setAttribute("y1", height - padding);
-    xAxis.setAttribute("x2", width - padding);
-    xAxis.setAttribute("y2", height - padding);
-    xAxis.setAttribute("stroke", "#718096");
-    svg.appendChild(xAxis);
+    let totalXP = 0;
+    const xpData = xpTransactions.map(t => {
+        totalXP += t.amount;
+        return {
+            date: new Date(t.createdAt),
+            amount: totalXP,
+            project: t.path.split('/').pop()
+        };
+    });
 
-    const yAxis = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    yAxis.setAttribute("x1", leftPadding);
-    yAxis.setAttribute("y1", padding);
-    yAxis.setAttribute("x2", leftPadding);
-    yAxis.setAttribute("y2", height - padding);
-    yAxis.setAttribute("stroke", "#718096");
-    svg.appendChild(yAxis);
+    const minTime = xpData[0].date;
+    const maxTime = new Date(Math.max(...xpData.map(d => d.date.getTime())));
+    maxTime.setDate(maxTime.getDate() + 5);
 
-    // График
-    const pathData = `M ${leftPadding} ${height - padding} ` + 
-        xpData.map((d, i) => {
-            const x = leftPadding + (i / (xpData.length - 1)) * (width - leftPadding - padding);
-            const y = height - padding - (d.amount / totalXP) * (height - 2 * padding);
-            return `L ${x} ${y}`;
-        }).join(' ');
+    const maxYValue = Math.ceil(totalXP / 100000) * 100000;
 
+    const xScale = date => 
+        leftPadding + ((date - minTime) / (maxTime - minTime)) * (width - leftPadding - padding);
+    
+    const yScale = amount =>
+        height - padding - (amount / maxYValue) * (height - 2 * padding);
+
+    drawTicksAndLabels();
+
+    let points = [];
+    xpData.forEach((d, i) => {
+        const x = xScale(d.date);
+        const y = yScale(d.amount);
+        points.push(`${x},${y}`);
+
+        if (i + 1 < xpData.length) {
+            points.push(`${xScale(xpData[i + 1].date)},${y}`);
+        } else {
+            points.push(`${xScale(maxTime)},${y}`);
+        }
+    });
+
+    const pathData = "M " + points.join(" L ");
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
     path.setAttribute("d", pathData);
     path.setAttribute("stroke", "#4299E1");
@@ -99,20 +88,14 @@ export function createProjectGraph(container, userData) {
     path.setAttribute("fill", "none");
     svg.appendChild(path);
 
-    // Точки и метки времени
-    xpData.forEach((d, i) => {
-        const x = leftPadding + (i / (xpData.length - 1)) * (width - leftPadding - padding);
-        const y = height - padding - (d.amount / totalXP) * (height - 2 * padding);
-
-        // Точка
+    xpData.forEach(d => {
         const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-        circle.setAttribute("cx", x);
-        circle.setAttribute("cy", y);
+        circle.setAttribute("cx", xScale(d.date));
+        circle.setAttribute("cy", yScale(d.amount));
         circle.setAttribute("r", "4");
         circle.setAttribute("fill", "#4299E1");
 
-        // Тултип
-        circle.addEventListener("mouseover", (e) => {
+        circle.addEventListener("mouseover", e => {
             const tooltip = document.createElement("div");
             tooltip.className = "tooltip";
             tooltip.textContent = `${d.project}: ${Math.round(d.amount / 1000)}k XP`;
@@ -126,26 +109,86 @@ export function createProjectGraph(container, userData) {
             if (tooltip) tooltip.remove();
         });
 
-        // Метка времени (для каждой 5-й точки)
-        if (i % 5 === 0 || i === xpData.length - 1) {
+        svg.appendChild(circle);
+    });
+
+    function drawTicksAndLabels() {
+        const xAxis = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        xAxis.setAttribute("x1", leftPadding);
+        xAxis.setAttribute("y1", height - padding);
+        xAxis.setAttribute("x2", width - padding);
+        xAxis.setAttribute("y2", height - padding);
+        xAxis.setAttribute("stroke", "#718096");
+        svg.appendChild(xAxis);
+
+        const yAxis = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        yAxis.setAttribute("x1", leftPadding);
+        yAxis.setAttribute("y1", height - padding);
+        yAxis.setAttribute("x2", leftPadding);
+        yAxis.setAttribute("y2", padding);
+        yAxis.setAttribute("stroke", "#718096");
+        svg.appendChild(yAxis);
+
+        const ySteps = 5;
+        for (let i = 0; i <= ySteps; i++) {
+            const value = (maxYValue / ySteps) * i;
+            const y = yScale(value);
+
+            const gridLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            gridLine.setAttribute("x1", leftPadding);
+            gridLine.setAttribute("x2", width - padding);
+            gridLine.setAttribute("y1", y);
+            gridLine.setAttribute("y2", y);
+            gridLine.setAttribute("stroke", "#E2E8F0");
+            gridLine.setAttribute("stroke-dasharray", "2,2");
+            svg.appendChild(gridLine);
+
+            const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            label.setAttribute("x", leftPadding - 10);
+            label.setAttribute("y", y + 4);
+            label.setAttribute("text-anchor", "end");
+            label.setAttribute("fill", "#718096");
+            label.setAttribute("font-size", "12px");
+            label.textContent = `${Math.round(value / 1000)}k`;
+            svg.appendChild(label);
+        }
+
+        const numDateLabels = 6;
+        for (let i = 0; i <= numDateLabels; i++) {
+            const progress = i / numDateLabels;
+            const date = new Date(minTime.getTime() + (maxTime.getTime() - minTime.getTime()) * progress);
+            const x = xScale(date);
+            
+            const tick = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            tick.setAttribute("x1", x);
+            tick.setAttribute("y1", height - padding);
+            tick.setAttribute("x2", x);
+            tick.setAttribute("y2", height - padding + 5);
+            tick.setAttribute("stroke", "#718096");
+            svg.appendChild(tick);
+
             const dateLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
             dateLabel.setAttribute("x", x);
             dateLabel.setAttribute("y", height - padding + 20);
             dateLabel.setAttribute("text-anchor", "middle");
-            dateLabel.setAttribute("fill", "#2D3748");
-            dateLabel.textContent = d.date.toLocaleDateString();
+            dateLabel.setAttribute("fill", "#718096");
+            dateLabel.setAttribute("font-size", "12px");
+            
+            const day = date.getDate().toString().padStart(2, '0');
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const year = date.getFullYear();
+            dateLabel.textContent = `${day}/${month}/${year}`;
+            
             svg.appendChild(dateLabel);
         }
-
-        svg.appendChild(circle);
-    });
+    }
 
     chartContent.appendChild(svg);
 }
 
 export function createSkillsGraph(container, userData) {
     if (!container || !userData.skills) return;
-    
+
     container.innerHTML = `
         <div class="info-card">
             <h3>Skills Progression</h3>
@@ -158,35 +201,32 @@ export function createSkillsGraph(container, userData) {
     const padding = 40;
     const leftPadding = 70;
     const bottomPadding = 90;
-    const barWidth = ((svgWidth - padding - leftPadding) / 6) * 0.75;
-    const barGap = ((svgWidth - padding - leftPadding) / 6) * 0.25;
 
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("width", svgWidth);
+    svg.setAttribute("height", svgHeight);
     svg.setAttribute("viewBox", `0 0 ${svgWidth} ${svgHeight}`);
-    svg.setAttribute("width", "100%");
-    svg.setAttribute("height", "100%");
+    svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
 
-    // Process skills data from userData
-    const skills = userData.skills
-        .filter(skill => skill.type.startsWith('skill_'))
-        .map(skill => ({
-            name: skill.type.replace('skill_', '').replace(/_/g, ' '),
-            amount: Math.round((skill.amount / 1000) * 100), // Convert to percentage
-            total: 100
-        }))
-        .sort((a, b) => b.amount - a.amount)
-        .slice(0, 6); // Take top 6 skills
+    const chartHeight = svgHeight - padding - bottomPadding;
 
-    console.log('Processed skills:', skills); // For debugging
+    const skills = userData.skills.map(skill => ({
+        name: skill.name,
+        amount: skill.amount
+    }));
 
-    const chartHeight = svgHeight - (padding + bottomPadding);
+    const barWidth = Math.min(
+        ((svgWidth - padding - leftPadding) / skills.length) * 0.8,
+        50
+    );
+    const barGap = ((svgWidth - padding - leftPadding) / skills.length) * 0.2;
 
-    // Y-axis scale and grid
+    const yScale = amount => chartHeight - (amount / 100) * chartHeight + padding;
+
     for (let i = 0; i <= 5; i++) {
-        const value = i * 20;
-        const y = chartHeight - (value / 100) * chartHeight + padding;
+        const y = padding + (i * (chartHeight) / 5);
+        const value = 100 - (i * 20);
 
-        // Grid line
         const gridLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
         gridLine.setAttribute("x1", leftPadding);
         gridLine.setAttribute("x2", svgWidth - padding);
@@ -196,67 +236,62 @@ export function createSkillsGraph(container, userData) {
         gridLine.setAttribute("stroke-dasharray", "2,2");
         svg.appendChild(gridLine);
 
-        // Y-axis label
         const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
         label.setAttribute("x", leftPadding - 10);
-        label.setAttribute("y", y + 4);
+        label.setAttribute("y", y + 5);
         label.setAttribute("text-anchor", "end");
         label.setAttribute("fill", "#718096");
+        label.setAttribute("font-size", "12px");
         label.textContent = `${value}%`;
         svg.appendChild(label);
     }
 
-    // Draw bars for actual skills data
-    skills.forEach((skill, index) => {
-        const x = leftPadding + index * (barWidth + barGap);
-        const barHeight = (skill.amount / 100) * chartHeight;
-        const y = chartHeight - barHeight + padding;
+    skills.forEach((skill, i) => {
+        const x = leftPadding + i * (barWidth + barGap);
+        const y = yScale(skill.amount);
+        const height = chartHeight - (y - padding);
 
-        // Background bar
         const bgBar = document.createElementNS("http://www.w3.org/2000/svg", "rect");
         bgBar.setAttribute("x", x);
         bgBar.setAttribute("y", padding);
         bgBar.setAttribute("width", barWidth);
         bgBar.setAttribute("height", chartHeight);
-        bgBar.setAttribute("fill", "#2D3748");
-        bgBar.setAttribute("opacity", "0.1");
+        bgBar.setAttribute("fill", "#E2E8F0");
         svg.appendChild(bgBar);
 
-        // Progress bar
-        const progressBar = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-        progressBar.setAttribute("x", x);
-        progressBar.setAttribute("y", y);
-        progressBar.setAttribute("width", barWidth);
-        progressBar.setAttribute("height", barHeight);
-        progressBar.setAttribute("fill", "#4299E1");
-        svg.appendChild(progressBar);
+        const bar = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        bar.setAttribute("x", x);
+        bar.setAttribute("y", y);
+        bar.setAttribute("width", barWidth);
+        bar.setAttribute("height", height);
+        bar.setAttribute("fill", "#4299E1");
+        svg.appendChild(bar);
 
-        // Value label
         const valueLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
         valueLabel.setAttribute("x", x + barWidth / 2);
         valueLabel.setAttribute("y", y - 5);
         valueLabel.setAttribute("text-anchor", "middle");
-        valueLabel.setAttribute("fill", "#2D3748");
+        valueLabel.setAttribute("fill", "#718096");
+        valueLabel.setAttribute("font-size", "12px");
         valueLabel.textContent = `${skill.amount}%`;
         svg.appendChild(valueLabel);
 
-        // Skill name
         const nameLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
         nameLabel.setAttribute("x", x + barWidth / 2);
         nameLabel.setAttribute("y", svgHeight - bottomPadding + 20);
         nameLabel.setAttribute("text-anchor", "middle");
         nameLabel.setAttribute("transform", `rotate(-45 ${x + barWidth / 2} ${svgHeight - bottomPadding + 20})`);
-        nameLabel.setAttribute("fill", "#2D3748");
+        nameLabel.setAttribute("fill", "#718096");
+        nameLabel.setAttribute("font-size", "12px");
         nameLabel.textContent = skill.name;
         svg.appendChild(nameLabel);
     });
 
-    // Add axis lines
     const xAxis = document.createElementNS("http://www.w3.org/2000/svg", "line");
     xAxis.setAttribute("x1", leftPadding);
-    xAxis.setAttribute("y1", chartHeight + padding);
+    xAxis.setAttribute("y1", svgHeight - bottomPadding);
     xAxis.setAttribute("x2", svgWidth - padding);
-    xAxis.setAttribute("y2", chartHeight + padding);
+    xAxis.setAttribute("y2", svgHeight - bottomPadding);
     xAxis.setAttribute("stroke", "#718096");
     svg.appendChild(xAxis);
 
@@ -264,7 +299,7 @@ export function createSkillsGraph(container, userData) {
     yAxis.setAttribute("x1", leftPadding);
     yAxis.setAttribute("y1", padding);
     yAxis.setAttribute("x2", leftPadding);
-    yAxis.setAttribute("y2", chartHeight + padding);
+    yAxis.setAttribute("y2", svgHeight - bottomPadding);
     yAxis.setAttribute("stroke", "#718096");
     svg.appendChild(yAxis);
 
