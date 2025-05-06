@@ -15,175 +15,196 @@ export function createLegendItem(color, label) {
 }
 
 export function createProjectGraph(container, userData) {
-    if (!container) return;
+    // Clear container first
+    container.innerHTML = '';
+    
+    // Create container with title
+    const chartInfoContainer = document.createElement('div');
+    chartInfoContainer.classList.add('chart-info-container', 'key-value-title');
+    
+    const title = document.createElement('h3');
+    title.textContent = 'XP progression';
+    chartInfoContainer.appendChild(title);
 
-    container.innerHTML = `
-        <div class="info-card">
-            <h3>XP Progression</h3>
-            <div class="chart-content"></div>
-        </div>
-    `;
-
-    const chartContent = container.querySelector('.chart-content');
-    const width = 800;
-    const height = 400;
+    // SVG setup
+    const svgWidth = 800;
+    const svgHeight = 400;
     const padding = 40;
     const leftPadding = 100;
 
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    svg.setAttribute("viewBox", `0 0 ${svgWidth} ${svgHeight}`);
     svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+    svg.classList.add('chart');
 
-    const xpTransactions = userData.transactions
-        .filter(t => t.type === 'xp' && !t.path.includes('piscine'))
-        .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    // Process XP data
+    const xpData = userData.xp || [];
+    let cumulativeXP = 0;
+    
+    // Create points array with initial point
+    const points = [{
+        date: new Date(xpData[0]?.createdAt || Date.now()),
+        xp: 0,
+        name: 'Start'
+    }];
 
-    if (xpTransactions.length === 0) {
-        chartContent.innerHTML = '<p>No XP data available</p>';
-        return;
-    }
+    // Sort transactions by date and calculate cumulative XP
+    const sortedTransactions = [...xpData].sort(
+        (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
+    );
 
-    let totalXP = 0;
-    const xpData = xpTransactions.map(t => {
-        totalXP += t.amount;
-        return {
-            date: new Date(t.createdAt),
-            amount: totalXP,
-            project: t.path.split('/').pop()
-        };
+    sortedTransactions.forEach(tx => {
+        if (!tx.amount || typeof tx.amount !== 'number') return;
+        
+        cumulativeXP += tx.amount;
+        points.push({
+            date: new Date(tx.createdAt),
+            xp: cumulativeXP,
+            name: tx.path ? tx.path.split('/').pop() : 'XP gain'
+        });
     });
 
-    const minTime = xpData[0].date;
-    const maxTime = new Date(Math.max(...xpData.map(d => d.date.getTime())));
-    maxTime.setDate(maxTime.getDate() + 5);
 
-    const maxYValue = Math.ceil(totalXP / 100000) * 100000;
+
+    // Scale functions
+    const minDate = points[0].date;
+    const maxDate = points[points.length - 1].date;
+    const maxXP = Math.max(...points.map(p => p.xp));
+
 
     const xScale = date => 
-        leftPadding + ((date - minTime) / (maxTime - minTime)) * (width - leftPadding - padding);
+        leftPadding + (date - minDate) / (maxDate - minDate) * (svgWidth - leftPadding - padding);
     
-    const yScale = amount =>
-        height - padding - (amount / maxYValue) * (height - 2 * padding);
+    const yScale = xp =>
+        svgHeight - padding - (xp / maxXP) * (svgHeight - 2 * padding);
 
-    drawTicksAndLabels();
+    // Draw grid and labels first
+    drawGridAndLabels();
 
-    let points = [];
-    xpData.forEach((d, i) => {
-        const x = xScale(d.date);
-        const y = yScale(d.amount);
-        points.push(`${x},${y}`);
+    // Draw XP line
+    const pathData = points.map((p, i) => {
+        const x = xScale(p.date);
+        const y = yScale(p.xp);
+        return `${i === 0 ? 'M' : 'L'} ${x},${y}`;
+    }).join(' ');
 
-        if (i + 1 < xpData.length) {
-            points.push(`${xScale(xpData[i + 1].date)},${y}`);
-        } else {
-            points.push(`${xScale(maxTime)},${y}`);
-        }
-    });
-
-    const pathData = "M " + points.join(" L ");
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
     path.setAttribute("d", pathData);
-    path.setAttribute("stroke", "#4299E1");
-    path.setAttribute("stroke-width", "2");
-    path.setAttribute("fill", "none");
+    path.classList.add("chart-line");
     svg.appendChild(path);
 
-    xpData.forEach(d => {
+    // Add data points with tooltips
+    points.forEach(point => {
         const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-        circle.setAttribute("cx", xScale(d.date));
-        circle.setAttribute("cy", yScale(d.amount));
+        circle.setAttribute("cx", xScale(point.date));
+        circle.setAttribute("cy", yScale(point.xp));
         circle.setAttribute("r", "4");
-        circle.setAttribute("fill", "#4299E1");
+        circle.classList.add("data-point");
 
+        // Enhanced tooltip
         circle.addEventListener("mouseover", e => {
             const tooltip = document.createElement("div");
-            tooltip.className = "tooltip";
-            tooltip.textContent = `${d.project}: ${Math.round(d.amount / 1000)}k XP`;
-            tooltip.style.left = `${e.pageX + 10}px`;
-            tooltip.style.top = `${e.pageY - 20}px`;
+            tooltip.classList.add("tooltip");
+            tooltip.textContent = `${point.name}: ${Math.round(point.xp/1000)}k XP`;
+            tooltip.style.left = `${e.pageX}px`;
+            tooltip.style.top = `${e.pageY - 30}px`;
             document.body.appendChild(tooltip);
         });
 
         circle.addEventListener("mouseout", () => {
-            const tooltip = document.querySelector(".tooltip");
-            if (tooltip) tooltip.remove();
+            document.querySelectorAll(".tooltip").forEach(t => t.remove());
         });
 
         svg.appendChild(circle);
     });
 
-    function drawTicksAndLabels() {
+    function drawGridAndLabels() {
+        // Add axes
         const xAxis = document.createElementNS("http://www.w3.org/2000/svg", "line");
         xAxis.setAttribute("x1", leftPadding);
-        xAxis.setAttribute("y1", height - padding);
-        xAxis.setAttribute("x2", width - padding);
-        xAxis.setAttribute("y2", height - padding);
-        xAxis.setAttribute("stroke", "#718096");
+        xAxis.setAttribute("x2", svgWidth - padding);
+        xAxis.setAttribute("y1", svgHeight - padding);
+        xAxis.setAttribute("y2", svgHeight - padding);
+        xAxis.classList.add("axis-line");
         svg.appendChild(xAxis);
 
         const yAxis = document.createElementNS("http://www.w3.org/2000/svg", "line");
         yAxis.setAttribute("x1", leftPadding);
-        yAxis.setAttribute("y1", height - padding);
         yAxis.setAttribute("x2", leftPadding);
+        yAxis.setAttribute("y1", svgHeight - padding);
         yAxis.setAttribute("y2", padding);
-        yAxis.setAttribute("stroke", "#718096");
+        yAxis.classList.add("axis-line");
         svg.appendChild(yAxis);
 
+        // Y-axis label
+        const yLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        yLabel.setAttribute("x", "15");
+        yLabel.setAttribute("y", svgHeight / 2);
+        yLabel.setAttribute("text-anchor", "middle");
+        yLabel.classList.add("axis-label");
+        yLabel.setAttribute("transform", `rotate(-90 15 ${svgHeight / 2})`);
+        svg.appendChild(yLabel);
+
+        // Add grid lines and labels
         const ySteps = 5;
         for (let i = 0; i <= ySteps; i++) {
-            const value = (maxYValue / ySteps) * i;
-            const y = yScale(value);
+            const y = padding + (i * (svgHeight - 2 * padding) / ySteps);
+            const value = Math.round((maxXP * (ySteps - i) / ySteps) / 1000);
 
+            // Grid line
             const gridLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
             gridLine.setAttribute("x1", leftPadding);
-            gridLine.setAttribute("x2", width - padding);
+            gridLine.setAttribute("x2", svgWidth - padding);
             gridLine.setAttribute("y1", y);
             gridLine.setAttribute("y2", y);
-            gridLine.setAttribute("stroke", "#E2E8F0");
-            gridLine.setAttribute("stroke-dasharray", "2,2");
+            gridLine.classList.add("grid-line");
             svg.appendChild(gridLine);
 
+            // Y-axis tick
+            const tick = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            tick.setAttribute("x1", leftPadding - 5);
+            tick.setAttribute("x2", leftPadding);
+            tick.setAttribute("y1", y);
+            tick.setAttribute("y2", y);
+            tick.classList.add("axis-tick");
+            svg.appendChild(tick);
+
+            // Y-axis label
             const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
             label.setAttribute("x", leftPadding - 10);
             label.setAttribute("y", y + 4);
             label.setAttribute("text-anchor", "end");
-            label.setAttribute("fill", "#718096");
-            label.setAttribute("font-size", "12px");
-            label.textContent = `${Math.round(value / 1000)}k`;
+            label.classList.add("tick-label");
+            label.textContent = `${value}k`;
             svg.appendChild(label);
         }
 
-        const numDateLabels = 6;
-        for (let i = 0; i <= numDateLabels; i++) {
-            const progress = i / numDateLabels;
-            const date = new Date(minTime.getTime() + (maxTime.getTime() - minTime.getTime()) * progress);
+        // X-axis ticks and labels
+        const xSteps = Math.min(points.length - 1, 5);
+        for (let i = 0; i <= xSteps; i++) {
+            const date = new Date(minDate.getTime() + (maxDate.getTime() - minDate.getTime()) * (i / xSteps));
             const x = xScale(date);
-            
+
             const tick = document.createElementNS("http://www.w3.org/2000/svg", "line");
             tick.setAttribute("x1", x);
-            tick.setAttribute("y1", height - padding);
             tick.setAttribute("x2", x);
-            tick.setAttribute("y2", height - padding + 5);
-            tick.setAttribute("stroke", "#718096");
+            tick.setAttribute("y1", svgHeight - padding);
+            tick.setAttribute("y2", svgHeight - padding + 5);
+            tick.classList.add("axis-tick");
             svg.appendChild(tick);
 
-            const dateLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
-            dateLabel.setAttribute("x", x);
-            dateLabel.setAttribute("y", height - padding + 20);
-            dateLabel.setAttribute("text-anchor", "middle");
-            dateLabel.setAttribute("fill", "#718096");
-            dateLabel.setAttribute("font-size", "12px");
-            
-            const day = date.getDate().toString().padStart(2, '0');
-            const month = (date.getMonth() + 1).toString().padStart(2, '0');
-            const year = date.getFullYear();
-            dateLabel.textContent = `${day}/${month}/${year}`;
-            
-            svg.appendChild(dateLabel);
+            const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            label.setAttribute("x", x);
+            label.setAttribute("y", svgHeight - padding + 27);
+            label.setAttribute("text-anchor", "middle");
+            label.classList.add("tick-label");
+            label.textContent = date.toLocaleDateString("fi-FI");
+            svg.appendChild(label);
         }
     }
 
-    chartContent.appendChild(svg);
+    chartInfoContainer.appendChild(svg);
+    container.appendChild(chartInfoContainer);
 }
 
 export function createSkillsGraph(container, userData) {
@@ -191,7 +212,7 @@ export function createSkillsGraph(container, userData) {
 
     container.innerHTML = `
         <div class="info-card">
-            <h3>Skills Progression</h3>
+            <h3>Skills progression</h3>
             <div class="chart-content"></div>
         </div>
     `;

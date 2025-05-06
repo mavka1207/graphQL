@@ -1,4 +1,11 @@
 import { createProjectGraph, createSkillsGraph } from './graphs.js';
+import {
+    validateAndCalculateXP,
+    formatXP,
+    calculateCompletedProjects,
+    calculateAuditRatio,
+    calculateAuditActivityRatio
+} from './dataUtils.js';
 
 export async function fetchUserData(token) {
     try {
@@ -22,10 +29,12 @@ export async function fetchUserData(token) {
                             totalDown
                             transactions(
                                 where: {
-                                    type: {_eq: "xp"},
-                                    path: {_nilike: "%piscine%"}
+                                _and: [
+                                    { event: { path: { _eq: "/gritlab/school-curriculum" }}},
+                                    { type: { _eq: "xp" } }
+                                ]
                                 }
-                                order_by: {createdAt: asc}
+                                order_by: { createdAt: asc }
                             ) {
                                 amount
                                 createdAt
@@ -69,16 +78,18 @@ export async function fetchUserData(token) {
 
         const userData = data.data.user[0];
 
-        // Отдельно фильтруем XP транзакции
-        const xpTransactions = (userData.transactions || []).filter(t => t.type === 'xp');
+        // Сохраняем отфильтрованные XP транзакции
+        userData.xp = userData.transactions;
+        delete userData.transactions;
 
+        // Обработка skills
         const skillsMap = {};
         userData.skills.forEach(skill => {
             if (!skill.type.startsWith('skill_')) return;
-            
+
             const skillName = skill.type.replace('skill_', '');
             const amount = Math.round(skill.amount);
-            
+
             if (!skillsMap[skillName] || skillsMap[skillName].amount < amount) {
                 skillsMap[skillName] = {
                     name: skillName,
@@ -90,6 +101,7 @@ export async function fetchUserData(token) {
         userData.skills = Object.values(skillsMap)
             .sort((a, b) => b.amount - a.amount);
 
+        // Отображение интерфейса
         document.getElementById("username-display").textContent = userData.login;
         updateUserInterface(userData);
 
@@ -102,24 +114,60 @@ export async function fetchUserData(token) {
 
 function updateUserInterface(userData) {
     const personalInfo = document.getElementById("personal-info");
-    const totalXP = userData.transactions.reduce((sum, t) => sum + t.amount, 0);
-    const completedProjects = userData.progresses ? 
-        userData.progresses.filter(p => p.grade > 0).length : 0;
-    const auditRatio = (userData.totalUp / userData.totalDown).toFixed(1);
 
+    console.log("🧪 DEBUG: raw XP transactions:", userData.xp);
+
+userData.xp.forEach((tx, i) => {
+    console.log(`#${i + 1}:`, {
+        amount: tx.amount,
+        createdAt: tx.createdAt,
+        path: tx.path,
+        type: tx.type,
+        typeOfAmount: typeof tx.amount
+    });
+});
+
+    const totalXP = validateAndCalculateXP(userData.xp || []);
+    console.log("✅ Calculated totalXP:", totalXP);
+    const totalKB = formatXP(totalXP);
+    const completedProjects = calculateCompletedProjects(userData.progresses);
+    const auditRatio = calculateAuditRatio(userData.totalUp, userData.totalDown);
+    const auditActivityRatio = calculateAuditActivityRatio(userData.totalUp, userData.totalDown);
+    
     personalInfo.innerHTML = `
-        <div class="info-card">
+        <div id="person-info-container" class="key-value-title">
             <h3>${userData.firstName} ${userData.lastName}</h3>
-            <h4>User Information</h4>
-            <p>Username: ${userData.login}</p>
-            <p>id number: ${userData.id}</p>
-            <h4>Projects Information</h4>
-            <p>Total XP: ${Math.round(totalXP / 1000)}k</p>
-            <p>Projects: ${completedProjects} completed</p>
-            <h4>Audit Information</h4>
-            <p>Audit Ratio: ${auditRatio}</p>
-            <p>Audits done: ${userData.totalUp}</p>
-            <p>Audits received: ${userData.totalDown}</p>
+            <div id="grids-container">
+                <div class="title-and-grid-container">
+                    <h4>User information</h4>
+                    <div id="personal-info" class="key-value-info">
+                        <span class="key-text">username:</span>
+                        <span>${userData.login}</span>
+                        <span class="key-text">id number:</span>
+                        <span>${userData.id}</span>
+                    </div>
+                </div>
+
+                <div class="title-and-grid-container">
+                    <h4>Projects information</h4>
+                    <div id="audit-info" class="key-value-info">
+                        <span class="key-text">total xp:</span>
+<span>${totalKB}</span>
+                        <span class="key-text">projects completed:</span>
+                        <span>${completedProjects}</span>
+                    </div>
+                </div>
+
+                <div class="title-and-grid-container">
+                    <h4>Audits information</h4>
+                    <div id="audit-info" class="key-value-info">
+                        <span class="key-text">audits done:</span>
+                        <span>${userData.totalUp}</span>
+                        <span class="key-text">audits ratio:</span>
+                        <span>${auditRatio}</span>
+                    </div>
+                </div>
+            </div>
         </div>
     `;
 
