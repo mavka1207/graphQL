@@ -63,7 +63,3 @@ export async function handleLogin(event) {
     }
 }
 
-// Clearing the password after use
-function clearPassword(passwordElement) {
-    passwordElement.value = '';
-}
