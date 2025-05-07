@@ -140,7 +140,7 @@ function updateUserInterface(userData) {
                     <h4>Projects information</h4>
                     <div id="audit-info" class="key-value-info">
                         <span class="key-text">total xp:</span>
-<span class="key-text">${totalKB}</span>
+                        <span class="key-text">${totalKB}</span>
                         <span class="key-text">projects completed:</span>
                         <span class="key-text">${completedProjects}</span>
                     </div>
