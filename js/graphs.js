@@ -299,7 +299,7 @@ export function createSkillsGraph(container, userData) {
 
         const nameLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
         nameLabel.setAttribute("x", x + barWidth / 2);
-        nameLabel.setAttribute("y", svgHeight - bottomPadding + 20);
+        nameLabel.setAttribute("y", svgHeight - bottomPadding + 30);
         nameLabel.setAttribute("text-anchor", "middle");
         nameLabel.setAttribute("transform", `rotate(-45 ${x + barWidth / 2} ${svgHeight - bottomPadding + 20})`);
         nameLabel.setAttribute("fill", "#718096");

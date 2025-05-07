@@ -164,14 +164,39 @@ body {
 
  .tooltip {
     position: absolute;
-    background: #2D3748;
-    color: white;
-    padding: 0.5rem;
-    border-radius: 4px;
-    font-size: 0.875rem;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 14px;
     pointer-events: none;
     z-index: 1000;
-} 
+    transition: all 0.2s ease;
+    color: #2d3748;
+}
+/* Анимация появления */
+.tooltip {
+    opacity: 0;
+    transform: translateY(5px);
+    animation: tooltipFadeIn 0.2s ease forwards;
+}
+
+@keyframes tooltipFadeIn {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Стили для точек на графике */
+.data-point {
+    fill: #4299E1;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.data-point:hover {
+    fill: #2B6CB0;
+    r: 6;
+}
 
 /* Footer styles */
 footer {
@@ -249,7 +274,7 @@ footer {
 }
 
 .grid-line {
-    stroke: #E2E8F0;
+    stroke: #2d3748;
     stroke-width: 1;
     stroke-dasharray: 2,2;
 }
@@ -272,17 +297,6 @@ footer {
 .data-tick {
     fill: #2196F3;
     cursor: pointer;
-}
-
-.tooltip {
-    position: absolute;
-    background: #2D3748;
-    color: white;
-    padding: 5px 10px;
-    border-radius: 4px;
-    font-size: 0.875rem;
-    pointer-events: none;
-    z-index: 1000;
 }
 
 .key-value-title {
@@ -465,3 +479,4 @@ h4 {
         width: 100%;
     }
 }
+

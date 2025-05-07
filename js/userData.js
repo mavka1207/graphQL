@@ -115,20 +115,8 @@ export async function fetchUserData(token) {
 function updateUserInterface(userData) {
     const personalInfo = document.getElementById("personal-info");
 
-    console.log("🧪 DEBUG: raw XP transactions:", userData.xp);
-
-userData.xp.forEach((tx, i) => {
-    console.log(`#${i + 1}:`, {
-        amount: tx.amount,
-        createdAt: tx.createdAt,
-        path: tx.path,
-        type: tx.type,
-        typeOfAmount: typeof tx.amount
-    });
-});
-
     const totalXP = validateAndCalculateXP(userData.xp || []);
-    console.log("✅ Calculated totalXP:", totalXP);
+    
     const totalKB = formatXP(totalXP);
     const completedProjects = calculateCompletedProjects(userData.progresses);
     const auditRatio = calculateAuditRatio(userData.totalUp, userData.totalDown);
@@ -142,9 +130,9 @@ userData.xp.forEach((tx, i) => {
                     <h4>User information</h4>
                     <div id="personal-info" class="key-value-info">
                         <span class="key-text">username:</span>
-                        <span>${userData.login}</span>
+                        <span class="key-text">${userData.login}</span>
                         <span class="key-text">id number:</span>
-                        <span>${userData.id}</span>
+                        <span class="key-text">${userData.id}</span>
                     </div>
                 </div>
 
@@ -152,9 +140,9 @@ userData.xp.forEach((tx, i) => {
                     <h4>Projects information</h4>
                     <div id="audit-info" class="key-value-info">
                         <span class="key-text">total xp:</span>
-<span>${totalKB}</span>
+<span class="key-text">${totalKB}</span>
                         <span class="key-text">projects completed:</span>
-                        <span>${completedProjects}</span>
+                        <span class="key-text">${completedProjects}</span>
                     </div>
                 </div>
 
@@ -162,9 +150,9 @@ userData.xp.forEach((tx, i) => {
                     <h4>Audits information</h4>
                     <div id="audit-info" class="key-value-info">
                         <span class="key-text">audits done:</span>
-                        <span>${userData.totalUp}</span>
+                        <span class="key-text">${userData.totalUp}</span>
                         <span class="key-text">audits ratio:</span>
-                        <span>${auditRatio}</span>
+                        <span class="key-text">${auditRatio}</span>
                     </div>
                 </div>
             </div>
