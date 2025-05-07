@@ -170,27 +170,8 @@ body {
     pointer-events: none;
     z-index: 1000;
     transition: all 0.2s ease;
+    color: #2d3748;
 }
-
-.graph-tooltip {
-    background: rgba(45, 55, 72, 0.95);  /* Темный фон */
-    color: #fff;  /* Белый текст */
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.tooltip-title {
-    display: block;
-    font-weight: bold;
-    color: #4299E1;  /* Голубой цвет */
-    margin-bottom: 2px;
-}
-
-.tooltip-value {
-    display: block;
-    color: #E2E8F0;  /* Светло-серый цвет */
-}
-
 /* Анимация появления */
 .tooltip {
     opacity: 0;
@@ -293,7 +274,7 @@ footer {
 }
 
 .grid-line {
-    stroke: #E2E8F0;
+    stroke: #2d3748;
     stroke-width: 1;
     stroke-dasharray: 2,2;
 }
@@ -498,3 +479,4 @@ h4 {
         width: 100%;
     }
 }
+
