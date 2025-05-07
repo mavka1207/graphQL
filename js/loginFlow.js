@@ -4,7 +4,8 @@ export async function handleLogin(event) {
     event.preventDefault();
     
     const usernameOrEmail = document.getElementById('username-or-email').value;
-    const password = document.getElementById('password-login').value;
+    const passwordElement = document.getElementById('password-login');
+    let password = passwordElement.value;
     const errorMessage = document.getElementById('login-error-message');
 
     try {
@@ -24,13 +25,20 @@ export async function handleLogin(event) {
         });
 
         if (!response.ok) {
-            throw new Error('Invalid credentials');
+            const errorData = await response.json();
+            errorMessage.textContent = errorData.error || 'Login failed';
+            errorMessage.style.display = 'block';
+            return;
         }
 
         const token = await response.text();
         const cleanToken = token.replace(/^"|"$/g, '');
+        errorMessage.style.display = 'none';
+        password = '';
+        passwordElement.value = '';
         
         localStorage.setItem('token', cleanToken);
+
         
         document.getElementById('login-section').classList.add('hidden');
         document.getElementById('user-info-header').classList.remove('hidden');
