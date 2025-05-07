@@ -42,7 +42,7 @@ The project uses various GraphQL query types:
 1. Clone the repository
 2. Open index.html in a modern web browser
 3. Log in with your Gritlab credentials
-4. You can also access the project on [https://mavka1207.github.io/graphQL/] (https://mavka1207.github.io/graphQL/)
+4. You can also access the project on https://mavka1207.github.io/graphQL/
 
 ## Usage
 1. Log in using your credentials
