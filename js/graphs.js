@@ -1,3 +1,27 @@
+// Constants for graph dimensions and styling
+const GRAPH_CONSTANTS = {
+    svgWidth: 800,
+    svgHeight: 400,
+    padding: 40,
+    leftPadding: 70,
+    bottomPadding: 90,
+    colors: {
+        grid: '#2d3748',
+        axis: '#718096',
+        bar: '#4299E1',
+        barBg: '#E2E8F0'
+    }
+};
+
+// Helper function to create SVG elements with attributes
+function createSVGElement(type, attributes = {}) {
+    const element = document.createElementNS("http://www.w3.org/2000/svg", type);
+    Object.entries(attributes).forEach(([key, value]) => {
+        element.setAttribute(key, value);
+    });
+    return element;
+}
+
 export function createLegendItem(color, label) {
     const item = document.createElement("div");
     item.className = "legend-item";
@@ -14,6 +38,44 @@ export function createLegendItem(color, label) {
     return item;
 }
 
+// Add touch event support
+function addTouchSupport(element, tooltipContent) {
+    element.addEventListener('touchstart', e => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        showTooltip(touch.pageX, touch.pageY, tooltipContent);
+    });
+
+    element.addEventListener('touchend', () => {
+        hideTooltip();
+    });
+}
+
+// Update tooltip positioning for mobile
+function showTooltip(x, y, content) {
+    const tooltip = document.createElement("div");
+    tooltip.classList.add("tooltip");
+    tooltip.textContent = content;
+
+    // Adjust position for mobile viewport
+    const viewportWidth = window.innerWidth;
+    const tooltipWidth = 200; // Approximate width
+
+    // Keep tooltip within viewport bounds
+    let leftPos = x - tooltipWidth / 2;
+    leftPos = Math.max(10, Math.min(leftPos, viewportWidth - tooltipWidth - 10));
+
+    tooltip.style.left = `${leftPos}px`;
+    tooltip.style.top = `${y - 40}px`; // Position above finger
+
+    document.body.appendChild(tooltip);
+}
+
+function hideTooltip() {
+    document.querySelectorAll(".tooltip").forEach(t => t.remove());
+}
+
+// Update createProjectGraph
 export function createProjectGraph(container, userData) {
     // Clear container first
     container.innerHTML = '';
@@ -36,6 +98,10 @@ export function createProjectGraph(container, userData) {
     svg.setAttribute("viewBox", `0 0 ${svgWidth} ${svgHeight}`);
     svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
     svg.classList.add('chart');
+
+    // Make SVG responsive
+    svg.style.width = "100%";
+    svg.style.height = "auto";
 
     // Process XP data
     const xpData = userData.xp || [];
@@ -64,13 +130,10 @@ export function createProjectGraph(container, userData) {
         });
     });
 
-
-
     // Scale functions
     const minDate = points[0].date;
     const maxDate = points[points.length - 1].date;
     const maxXP = Math.max(...points.map(p => p.xp));
-
 
     const xScale = date => 
         leftPadding + (date - minDate) / (maxDate - minDate) * (svgWidth - leftPadding - padding);
@@ -95,25 +158,24 @@ export function createProjectGraph(container, userData) {
 
     // Add data points with tooltips
     points.forEach(point => {
-        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-        circle.setAttribute("cx", xScale(point.date));
-        circle.setAttribute("cy", yScale(point.xp));
-        circle.setAttribute("r", "4");
-        circle.classList.add("data-point");
+        const circle = createSVGElement("circle", {
+            cx: xScale(point.date),
+            cy: yScale(point.xp),
+            r: window.matchMedia('(hover: none)').matches ? "6" : "4",
+            class: "data-point"
+        });
 
-        // Enhanced tooltip
+        const tooltipContent = `${point.name}: ${Math.round(point.xp/1000)}k XP`;
+        
+        // Mouse events
         circle.addEventListener("mouseover", e => {
-            const tooltip = document.createElement("div");
-            tooltip.classList.add("tooltip");
-            tooltip.textContent = `${point.name}: ${Math.round(point.xp/1000)}k XP`;
-            tooltip.style.left = `${e.pageX}px`;
-            tooltip.style.top = `${e.pageY - 30}px`;
-            document.body.appendChild(tooltip);
+            showTooltip(e.pageX, e.pageY, tooltipContent);
         });
 
-        circle.addEventListener("mouseout", () => {
-            document.querySelectorAll(".tooltip").forEach(t => t.remove());
-        });
+        circle.addEventListener("mouseout", hideTooltip);
+
+        // Touch events
+        addTouchSupport(circle, tooltipContent);
 
         svg.appendChild(circle);
     });
@@ -141,7 +203,6 @@ export function createProjectGraph(container, userData) {
         yLabel.setAttribute("x", "15");
         yLabel.setAttribute("y", svgHeight / 2);
         yLabel.setAttribute("text-anchor", "middle");
-        yLabel.classList.add("axis-label");
         yLabel.setAttribute("transform", `rotate(-90 15 ${svgHeight / 2})`);
         svg.appendChild(yLabel);
 
@@ -207,6 +268,7 @@ export function createProjectGraph(container, userData) {
     container.appendChild(chartInfoContainer);
 }
 
+// Update createSkillsGraph
 export function createSkillsGraph(container, userData) {
     if (!container || !userData.skills) return;
 
@@ -224,10 +286,13 @@ export function createSkillsGraph(container, userData) {
     const bottomPadding = 90;
 
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.setAttribute("width", svgWidth);
-    svg.setAttribute("height", svgHeight);
     svg.setAttribute("viewBox", `0 0 ${svgWidth} ${svgHeight}`);
     svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+    svg.classList.add('chart');
+
+    // Make SVG responsive
+    svg.style.width = "100%";
+    svg.style.height = "auto";
 
     const chartHeight = svgHeight - padding - bottomPadding;
 

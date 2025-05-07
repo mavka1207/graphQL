@@ -1,3 +1,4 @@
+// Calculate total XP from transactions
 export function validateAndCalculateXP(transactions = []) {
     return transactions.reduce((sum, t) => {
         const value = typeof t.amount === 'number' ? t.amount : parseInt(t.amount, 10) || 0;
@@ -5,6 +6,7 @@ export function validateAndCalculateXP(transactions = []) {
     }, 0);
 }
 
+// Format XP value with appropriate unit (K or M)
 export function formatXP(xp) {
     if (xp >= 1_000_000) {
         return (xp / 1_000_000).toFixed(1) + 'M';

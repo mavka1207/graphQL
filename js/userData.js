@@ -7,8 +7,10 @@ import {
     calculateAuditActivityRatio
 } from './dataUtils.js';
 
+// GraphQL query to fetch user data including XP, skills, and progress
 export async function fetchUserData(token) {
     try {
+        // API request configuration
         const response = await fetch("https://01.gritlab.ax/api/graphql-engine/v1/graphql", {
             method: "POST",
             headers: {
@@ -71,6 +73,7 @@ export async function fetchUserData(token) {
             })
         });
 
+        // Process and validate response
         const data = await response.json();
         if (data.errors) {
             throw new Error(data.errors[0].message);
@@ -78,30 +81,28 @@ export async function fetchUserData(token) {
 
         const userData = data.data.user[0];
 
-        // Сохраняем отфильтрованные XP транзакции
+        // Store filtered XP transactions
         userData.xp = userData.transactions;
         delete userData.transactions;
 
-        // Обработка skills
+        // Process skills data and calculate percentages
         const skillsMap = {};
         userData.skills.forEach(skill => {
             if (!skill.type.startsWith('skill_')) return;
-
+            // Extract skill name and normalize amount
             const skillName = skill.type.replace('skill_', '');
             const amount = Math.round(skill.amount);
-
+            // Keep highest amount for each skill
             if (!skillsMap[skillName] || skillsMap[skillName].amount < amount) {
-                skillsMap[skillName] = {
-                    name: skillName,
-                    amount: amount
-                };
+                skillsMap[skillName] = { name: skillName, amount: amount };
             }
         });
 
+        // Sort skills by amount in descending order
         userData.skills = Object.values(skillsMap)
             .sort((a, b) => b.amount - a.amount);
 
-        // Отображение интерфейса
+        // Update UI with user data
         document.getElementById("username-display").textContent = userData.login;
         updateUserInterface(userData);
 
@@ -123,12 +124,12 @@ function updateUserInterface(userData) {
     const auditActivityRatio = calculateAuditActivityRatio(userData.totalUp, userData.totalDown);
     
     personalInfo.innerHTML = `
-        <div id="person-info-container" class="key-value-title">
+        <div class="person-info-container key-value-title">
             <h3>${userData.firstName} ${userData.lastName}</h3>
             <div id="grids-container">
                 <div class="title-and-grid-container">
                     <h4>User information</h4>
-                    <div id="personal-info" class="key-value-info">
+                    <div class="personal-info key-value-info">
                         <span class="key-text">username:</span>
                         <span class="key-text">${userData.login}</span>
                         <span class="key-text">id number:</span>
@@ -138,7 +139,7 @@ function updateUserInterface(userData) {
 
                 <div class="title-and-grid-container">
                     <h4>Projects information</h4>
-                    <div id="audit-info" class="key-value-info">
+                    <div class="audit-info key-value-info">
                         <span class="key-text">total xp:</span>
                         <span class="key-text">${totalKB}</span>
                         <span class="key-text">projects completed:</span>
@@ -148,7 +149,7 @@ function updateUserInterface(userData) {
 
                 <div class="title-and-grid-container">
                     <h4>Audits information</h4>
-                    <div id="audit-info" class="key-value-info">
+                    <div class="audit-info key-value-info">
                         <span class="key-text">audits done:</span>
                         <span class="key-text">${userData.totalUp}</span>
                         <span class="key-text">audits ratio:</span>
